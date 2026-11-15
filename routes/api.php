@@ -4,6 +4,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DeviceController;
 use App\Http\Controllers\FriendController;
 use App\Http\Controllers\GameController;
+use App\Http\Controllers\GameMessageController;
 use App\Http\Controllers\GameMoveController;
 use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\PlayerController;
@@ -33,6 +34,9 @@ Route::prefix('v1')->group(function () {
         Route::post('games/{game}/accept', [GameController::class, 'accept']);
         Route::post('games/{game}/decline', [GameController::class, 'decline']);
         Route::post('games/{game}/resign', [GameController::class, 'resign']);
+        Route::post('games/{game}/nudge', [GameController::class, 'nudge']);
         Route::post('games/{game}/moves', [GameMoveController::class, 'store']);
+        Route::get('games/{game}/messages', [GameMessageController::class, 'index']);
+        Route::post('games/{game}/messages', [GameMessageController::class, 'store'])->middleware('throttle:30,1');
     });
 });

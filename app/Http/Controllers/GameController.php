@@ -9,12 +9,16 @@ use App\Models\User;
 use App\Support\GamePush;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Http\Response;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class GameController extends Controller
 {
     private const RELATIONS = ['white', 'black', 'invited'];
+
+    private const NUDGE_COOLDOWN = 900;
 
     public function index(Request $request): AnonymousResourceCollection
     {
@@ -114,6 +118,28 @@ class GameController extends Controller
         GamePush::resigned($game, $user);
 
         return new GameResource($game->load(self::RELATIONS));
+    }
+
+    /**
+     * Remind the opponent it's their move. Once every 15 minutes per game, per player.
+     */
+    public function nudge(Request $request, Game $game): Response
+    {
+        $user = $request->user();
+        abort_unless($game->isPlayer($user), 404);
+        abort_unless($game->status === Game::ACTIVE, 409, 'This game is not in progress.');
+        abort_if($game->playerToMoveId() === $user->id, 409, "It's your move.");
+
+        $key = "nudge:{$game->id}:{$user->id}";
+        if (RateLimiter::tooManyAttempts($key, 1)) {
+            $minutes = (int) ceil(RateLimiter::availableIn($key) / 60);
+            abort(429, "You can nudge again in {$minutes} min.");
+        }
+        RateLimiter::hit($key, self::NUDGE_COOLDOWN);
+
+        GamePush::nudged($game, $user);
+
+        return response()->noContent();
     }
 
     private function friendOf(User $user, int $friendId): User

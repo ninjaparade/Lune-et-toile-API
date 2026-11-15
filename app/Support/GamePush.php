@@ -46,6 +46,16 @@ class GamePush
         self::send(self::opponentOf($game, $by), 'Your opponent resigned — you won!', $game);
     }
 
+    public static function nudged(Game $game, User $by): void
+    {
+        self::send(self::opponentOf($game, $by), "Friendly nudge — it's your move.", $game);
+    }
+
+    public static function messaged(Game $game, User $by): void
+    {
+        self::send(self::opponentOf($game, $by), 'You have a new message.', $game);
+    }
+
     private static function opponentOf(Game $game, User $player): ?User
     {
         return $game->white_id === $player->id ? $game->black : $game->white;

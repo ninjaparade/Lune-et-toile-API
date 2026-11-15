@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 #[Fillable(['created_by', 'white_id', 'black_id', 'invited_id', 'status', 'moves', 'result', 'termination'])]
 class Game extends Model
@@ -20,6 +21,9 @@ class Game extends Model
 
     public const FINISHED = 'finished';
 
+    /** A player can nudge their opponent once per this many minutes. */
+    public const NUDGE_COOLDOWN_MINUTES = 15;
+
     protected $attributes = [
         'status' => self::WAITING,
         'moves' => '[]',
@@ -27,7 +31,7 @@ class Game extends Model
 
     protected function casts(): array
     {
-        return ['moves' => 'array'];
+        return ['moves' => 'array', 'white_nudged_at' => 'datetime', 'black_nudged_at' => 'datetime'];
     }
 
     /**
@@ -89,6 +93,16 @@ class Game extends Model
     /**
      * Whose turn it is by ply count: even = white, odd = black.
      */
+    /**
+     * When the given side may nudge next (null = now).
+     */
+    public function nextNudgeAt(string $color): ?Carbon
+    {
+        $next = $this->{"{$color}_nudged_at"}?->copy()->addMinutes(self::NUDGE_COOLDOWN_MINUTES);
+
+        return $next?->isFuture() ? $next : null;
+    }
+
     public function playerToMoveId(): ?int
     {
         return count($this->moves) % 2 === 0 ? $this->white_id : $this->black_id;

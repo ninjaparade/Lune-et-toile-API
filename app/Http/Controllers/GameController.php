@@ -9,16 +9,12 @@ use App\Models\User;
 use App\Support\GamePush;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
-use Illuminate\Http\Response;
-use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class GameController extends Controller
 {
     private const RELATIONS = ['white', 'black', 'invited'];
-
-    private const NUDGE_COOLDOWN = 900;
 
     public function index(Request $request): AnonymousResourceCollection
     {
@@ -121,25 +117,24 @@ class GameController extends Controller
     }
 
     /**
-     * Remind the opponent it's their move. Once every 15 minutes per game, per player.
+     * Remind the opponent it's their move. Once per cooldown (Game::NUDGE_COOLDOWN_MINUTES) per side.
      */
-    public function nudge(Request $request, Game $game): Response
+    public function nudge(Request $request, Game $game): GameResource
     {
         $user = $request->user();
         abort_unless($game->isPlayer($user), 404);
         abort_unless($game->status === Game::ACTIVE, 409, 'This game is not in progress.');
         abort_if($game->playerToMoveId() === $user->id, 409, "It's your move.");
 
-        $key = "nudge:{$game->id}:{$user->id}";
-        if (RateLimiter::tooManyAttempts($key, 1)) {
-            $minutes = (int) ceil(RateLimiter::availableIn($key) / 60);
-            abort(429, "You can nudge again in {$minutes} min.");
+        $color = $game->white_id === $user->id ? 'white' : 'black';
+        if ($next = $game->nextNudgeAt($color)) {
+            abort(429, 'You can nudge again in '.(int) ceil(now()->diffInSeconds($next) / 60).' min.');
         }
-        RateLimiter::hit($key, self::NUDGE_COOLDOWN);
 
+        $game->forceFill(["{$color}_nudged_at" => now()])->save();
         GamePush::nudged($game, $user);
 
-        return response()->noContent();
+        return new GameResource($game->load(self::RELATIONS));
     }
 
     private function friendOf(User $user, int $friendId): User

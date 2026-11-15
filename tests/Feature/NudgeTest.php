@@ -22,13 +22,21 @@ it('nudges the player to move with a generic notification, every 15 minutes', fu
     [$game, $yaz, $andy] = nudgeGame();
     DeviceToken::create(['user_id' => $andy->id, 'token' => str_repeat('cd', 32), 'environment' => 'sandbox']);
 
-    $this->actingAs($yaz)->postJson("/api/v1/games/{$game->uid}/nudge")->assertNoContent();
+    $this->freezeSecond();
+    $this->actingAs($yaz)->postJson("/api/v1/games/{$game->uid}/nudge")
+        ->assertOk()
+        ->assertJsonPath('data.next_nudge_at.white', now()->addMinutes(15)->toIso8601String())
+        ->assertJsonPath('data.next_nudge_at.black', null);
     Http::assertSent(fn (Request $request) => $request['aps']['alert']['body'] === "Friendly nudge — it's your move."
         && $request['game'] === $game->uid);
 
     $this->actingAs($yaz)->postJson("/api/v1/games/{$game->uid}/nudge")
         ->assertTooManyRequests()
         ->assertJsonPath('message', 'You can nudge again in 15 min.');
+
+    $this->travel(15)->minutes();
+    $this->actingAs($yaz)->getJson("/api/v1/games/{$game->uid}")->assertJsonPath('data.next_nudge_at.white', null);
+    $this->actingAs($yaz)->postJson("/api/v1/games/{$game->uid}/nudge")->assertOk();
 });
 
 it('only nudges an opponent whose turn it is, in your own active game', function () {

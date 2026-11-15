@@ -28,14 +28,14 @@ class Apns
      * Alert every device the user is signed in on. `$data` rides along in the payload
      * (e.g. the game uid the app opens when the notification is tapped).
      */
-    public function send(User $user, string $title, string $body, array $data = []): void
+    public function send(User $user, string $body, array $data = []): void
     {
         if (! $this->isConfigured()) {
             return;
         }
 
         $payload = [...$data, 'aps' => [
-            'alert' => ['title' => $title, 'body' => $body],
+            'alert' => ['body' => $body],
             'sound' => 'default',
             'badge' => $user->pendingCount(),
             'thread-id' => $data['game'] ?? 'etoile',

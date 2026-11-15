@@ -35,11 +35,6 @@ class User extends Authenticatable
         return $this->belongsToMany(User::class, 'friendships', 'user_id', 'friend_id')->withTimestamps();
     }
 
-    public function firstName(): string
-    {
-        return strtok($this->name, ' ') ?: $this->username;
-    }
-
     public function deviceTokens(): HasMany
     {
         return $this->hasMany(DeviceToken::class);

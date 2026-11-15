@@ -3,7 +3,6 @@
 use App\Models\DeviceToken;
 use App\Models\Game;
 use App\Models\User;
-use App\Support\GamePush;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 
@@ -46,27 +45,27 @@ it('tells the opponent it is their move, on the host for their build', function 
     $andy->deviceTokens()->create(['token' => str_repeat('cd', 32), 'environment' => 'production']);
     $game = Game::create(['created_by' => $yaz->id, 'white_id' => $yaz->id, 'black_id' => $andy->id, 'status' => Game::ACTIVE]);
 
-    $this->actingAs($yaz)->postJson("/api/v1/games/{$game->uid}/moves", ['uci' => 'e2e4', 'ply' => 0, 'san' => 'e4'])->assertOk();
+    $this->actingAs($yaz)->postJson("/api/v1/games/{$game->uid}/moves", ['uci' => 'e2e4', 'ply' => 0])->assertOk();
 
     Http::assertSent(fn (Request $request) => str_starts_with($request->url(), 'https://api.push.apple.com/3/device/'.str_repeat('cd', 32))
-        && $request['aps']['alert'] == ['title' => 'vs Yaz Jallad', 'body' => 'Yaz moved a pawn. Your move.']
+        && $request['aps']['alert'] == ['body' => "It's your move."]
         && $request['aps']['badge'] === 1
         && $request['game'] === $game->uid
         && $request->header('apns-topic') === ['com.ninjaparade.etoile']);
 });
 
-it('words checkmate and resignation for the person receiving them', function () {
+it('tells the loser it was checkmate without naming anyone', function () {
     withApnsKey();
     [$yaz, $andy] = pushPlayers();
     $yaz->deviceTokens()->create(['token' => str_repeat('ef', 32), 'environment' => 'sandbox']);
     $game = Game::create(['created_by' => $yaz->id, 'white_id' => $yaz->id, 'black_id' => $andy->id, 'status' => Game::ACTIVE, 'moves' => ['f2f3', 'e7e5', 'g2g4']]);
 
     $this->actingAs($andy)->postJson("/api/v1/games/{$game->uid}/moves", [
-        'uci' => 'd8h4', 'ply' => 3, 'san' => 'Qh4#', 'result' => '0-1', 'termination' => 'checkmate',
+        'uci' => 'd8h4', 'ply' => 3, 'result' => '0-1', 'termination' => 'checkmate',
     ])->assertOk();
 
     Http::assertSent(fn (Request $request) => str_starts_with($request->url(), 'https://api.sandbox.push.apple.com/')
-        && $request['aps']['alert']['body'] === 'Andrea moved a queen. Checkmate — you lost this one.');
+        && $request['aps']['alert'] == ['body' => 'Checkmate — you lost this one.']);
 });
 
 it('notifies the invitee of a new game', function () {
@@ -76,7 +75,7 @@ it('notifies the invitee of a new game', function () {
 
     $this->actingAs($yaz)->postJson('/api/v1/games', ['color' => 'white', 'friend_id' => $andy->id])->assertCreated();
 
-    Http::assertSent(fn (Request $request) => $request['aps']['alert'] == ['title' => 'Yaz Jallad', 'body' => "Invited you to a game — you'd play Black."]
+    Http::assertSent(fn (Request $request) => $request['aps']['alert'] == ['body' => "You've been invited to a new game."]
         && $request['aps']['badge'] === 1);
 });
 
@@ -102,25 +101,14 @@ it('sends nothing until a key is configured', function () {
     Http::assertNothingSent();
 });
 
-it('describes moves in plain English', function (string $san, ?string $captured, string $expected) {
-    expect(GamePush::describe('Yaz', $san, $captured))->toBe($expected);
-})->with([
-    ['Nf3', null, 'Yaz moved a knight'],
-    ['exd5', 'pawn', "Yaz's pawn took your pawn"],
-    ['Bxf7+', 'rook', "Yaz's bishop took your rook"],
-    ['O-O', null, 'Yaz castled kingside'],
-    ['O-O-O+', null, 'Yaz castled queenside'],
-    ['e8=Q', null, 'Yaz moved a pawn and promoted it to a queen'],
-    ['dxc8=N', 'bishop', "Yaz's pawn took your bishop and promoted it to a knight"],
-]);
-
-it('says check when the move gives check', function () {
+it('never puts names in notifications', function () {
     withApnsKey();
     [$yaz, $andy] = pushPlayers();
-    $andy->deviceTokens()->create(['token' => str_repeat('78', 32), 'environment' => 'sandbox']);
-    $game = Game::create(['created_by' => $yaz->id, 'white_id' => $yaz->id, 'black_id' => $andy->id, 'status' => Game::ACTIVE, 'moves' => ['e2e4', 'f7f6']]);
+    $andy->deviceTokens()->create(['token' => str_repeat('9a', 32), 'environment' => 'sandbox']);
+    $game = Game::create(['created_by' => $yaz->id, 'white_id' => $yaz->id, 'black_id' => $andy->id, 'status' => Game::ACTIVE]);
 
-    $this->actingAs($yaz)->postJson("/api/v1/games/{$game->uid}/moves", ['uci' => 'd1h5', 'ply' => 2, 'san' => 'Qh5+'])->assertOk();
+    $this->actingAs($yaz)->postJson("/api/v1/games/{$game->uid}/resign")->assertOk();
 
-    Http::assertSent(fn (Request $request) => $request['aps']['alert']['body'] === 'Yaz moved a queen. Check — your move.');
+    Http::assertSent(fn (Request $request) => $request['aps']['alert'] == ['body' => 'Your opponent resigned — you won!']
+        && ! str_contains(json_encode($request->data()), 'Yaz'));
 });

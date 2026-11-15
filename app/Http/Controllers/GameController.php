@@ -44,7 +44,7 @@ class GameController extends Controller
 
         GameUpdated::send($game->refresh()->load(self::RELATIONS));
         if ($game->invited) {
-            GamePush::invited($game, $user);
+            GamePush::invited($game);
         }
 
         return new GameResource($game);
@@ -66,7 +66,7 @@ class GameController extends Controller
         $data = $request->validate(['friend_id' => ['required', 'integer']]);
         $game->update(['invited_id' => $this->friendOf($user, $data['friend_id'])->id]);
         GameUpdated::send($game->load(self::RELATIONS));
-        GamePush::invited($game, $user);
+        GamePush::invited($game);
 
         return new GameResource($game->load(self::RELATIONS));
     }
@@ -94,7 +94,7 @@ class GameController extends Controller
 
         $game->update(['invited_id' => null]);
         GameUpdated::send($game->load(self::RELATIONS));
-        GamePush::declined($game, $request->user());
+        GamePush::declined($game);
 
         return new GameResource($game->load(self::RELATIONS));
     }

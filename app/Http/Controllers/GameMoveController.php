@@ -23,9 +23,6 @@ class GameMoveController extends Controller
             'ply' => ['required', 'integer', 'min:0'],
             'result' => ['nullable', Rule::in(['1-0', '0-1', '1/2-1/2'])],
             'termination' => ['nullable', 'required_with:result', 'string', 'max:32'],
-            // Only used to word the opponent's notification ("Yaz's pawn took your rook").
-            'san' => ['nullable', 'string', 'max:10'],
-            'captured' => ['nullable', Rule::in(['pawn', 'knight', 'bishop', 'rook', 'queen'])],
         ]);
 
         $user = $request->user();
@@ -50,7 +47,7 @@ class GameMoveController extends Controller
         });
 
         GameUpdated::send($game->load(['white', 'black', 'invited']));
-        GamePush::moved($game, $user, $data['san'] ?? null, $data['captured'] ?? null);
+        GamePush::moved($game, $user);
 
         return new GameResource($game);
     }

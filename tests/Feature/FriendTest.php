@@ -26,3 +26,26 @@ it('lists and removes friends', function () {
 
     expect($andy->isFriendsWith($yaz))->toBeFalse();
 });
+
+it('gives every player a shareable uid and adds friends by it', function () {
+    [$yaz, $andy] = User::factory()->count(2)->create();
+    expect($andy->uid)->toHaveLength(26);
+
+    $this->actingAs($andy)->getJson('/api/v1/me')->assertJsonPath('user.uid', $andy->uid);
+
+    $this->actingAs($yaz)->postJson('/api/v1/friends', ['uid' => strtoupper($andy->uid)])
+        ->assertCreated()->assertJsonPath('data.uid', $andy->uid);
+
+    expect($yaz->isFriendsWith($andy))->toBeTrue();
+});
+
+it('rejects an unknown or own uid with 422', function () {
+    $yaz = User::factory()->create();
+
+    $this->actingAs($yaz)->postJson('/api/v1/friends', ['uid' => '01kzzzzzzzzzzzzzzzzzzzzzzz'])
+        ->assertUnprocessable()->assertJsonValidationErrors('uid');
+    $this->actingAs($yaz)->postJson('/api/v1/friends', ['uid' => $yaz->uid])
+        ->assertUnprocessable()->assertJsonValidationErrors('uid');
+    $this->actingAs($yaz)->postJson('/api/v1/friends', [])
+        ->assertUnprocessable()->assertJsonValidationErrors(['username', 'uid']);
+});

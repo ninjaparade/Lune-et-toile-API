@@ -30,6 +30,7 @@ Route::prefix('v1')->group(function () {
         Route::get('games', [GameController::class, 'index']);
         Route::post('games', [GameController::class, 'store']);
         Route::get('games/{game}', [GameController::class, 'show']);
+        Route::delete('games/{game}', [GameController::class, 'destroy']);
         Route::post('games/{game}/invite', [GameController::class, 'invite']);
         Route::post('games/{game}/accept', [GameController::class, 'accept']);
         Route::post('games/{game}/decline', [GameController::class, 'decline']);

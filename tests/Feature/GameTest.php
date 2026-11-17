@@ -110,3 +110,24 @@ it('only lets players join a game channel', function () {
     $this->actingAs($andy)->postJson('/api/v1/broadcasting/auth', ['socket_id' => '1.1', 'channel_name' => "presence-game.{$game->uid}"])
         ->assertOk()->assertJsonStructure(['auth', 'channel_data']);
 });
+
+it('lets the creator cancel a waiting game and its invitation', function () {
+    Event::fake([GameUpdated::class]);
+    [$yaz, $andy] = friends();
+    $uid = $this->actingAs($yaz)->postJson('/api/v1/games', ['color' => 'white', 'friend_id' => $andy->id])->json('data.uid');
+
+    $this->actingAs($andy)->deleteJson("/api/v1/games/{$uid}")->assertNotFound();
+    $this->actingAs($yaz)->deleteJson("/api/v1/games/{$uid}")->assertNoContent();
+
+    expect(Game::where('uid', $uid)->exists())->toBeFalse();
+    Event::assertDispatched(GameUpdated::class, fn (GameUpdated $e) => $e->game->uid === $uid);
+    $this->actingAs($andy)->getJson('/api/v1/games')->assertJsonCount(0, 'data');
+});
+
+it('does not cancel a game that has started', function () {
+    [$yaz, $andy] = friends();
+    $uid = $this->actingAs($yaz)->postJson('/api/v1/games', ['color' => 'white', 'friend_id' => $andy->id])->json('data.uid');
+    $this->actingAs($andy)->postJson("/api/v1/games/{$uid}/accept")->assertOk();
+
+    $this->actingAs($yaz)->deleteJson("/api/v1/games/{$uid}")->assertConflict();
+});

@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Support\GamePush;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Http\Response;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -97,6 +98,21 @@ class GameController extends Controller
         GamePush::declined($game);
 
         return new GameResource($game->load(self::RELATIONS));
+    }
+
+    /**
+     * Cancel a game nobody has joined yet (withdrawing any invitation) and delete it.
+     */
+    public function destroy(Request $request, Game $game): Response
+    {
+        abort_unless($game->created_by === $request->user()->id, 404);
+        abort_unless($game->status === Game::WAITING, 409, 'This game has already started.');
+
+        // Tell the invitee's games list before the row disappears.
+        GameUpdated::send($game->load(self::RELATIONS));
+        $game->delete();
+
+        return response()->noContent();
     }
 
     public function resign(Request $request, Game $game): GameResource

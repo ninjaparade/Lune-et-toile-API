@@ -17,6 +17,7 @@ class PlayerResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'uid' => $this->uid,
             'username' => $this->username,
             'name' => $this->name,
         ];

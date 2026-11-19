@@ -8,6 +8,7 @@ use App\Http\Controllers\GameMessageController;
 use App\Http\Controllers\GameMoveController;
 use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\PlayerController;
+use App\Http\Controllers\PreferenceController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -16,6 +17,7 @@ Route::prefix('v1')->group(function () {
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('me', [AuthController::class, 'me']);
+        Route::patch('me/preferences', [PreferenceController::class, 'update']);
 
         Route::post('devices', [DeviceController::class, 'store']);
         Route::delete('devices/{token}', [DeviceController::class, 'destroy']);

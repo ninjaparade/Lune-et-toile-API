@@ -22,8 +22,6 @@ class Game extends Model
     public const FINISHED = 'finished';
 
     /** A player can nudge their opponent once per this many minutes. */
-    public const NUDGE_COOLDOWN_MINUTES = 15;
-
     protected $attributes = [
         'status' => self::WAITING,
         'moves' => '[]',
@@ -98,7 +96,7 @@ class Game extends Model
      */
     public function nextNudgeAt(string $color): ?Carbon
     {
-        $next = $this->{"{$color}_nudged_at"}?->copy()->addMinutes(self::NUDGE_COOLDOWN_MINUTES);
+        $next = $this->{"{$color}_nudged_at"}?->copy()->addMinutes(config('etoile.nudge_cooldown_minutes'));
 
         return $next?->isFuture() ? $next : null;
     }

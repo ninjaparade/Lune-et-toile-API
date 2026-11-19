@@ -133,7 +133,7 @@ class GameController extends Controller
     }
 
     /**
-     * Remind the opponent it's their move. Once per cooldown (Game::NUDGE_COOLDOWN_MINUTES) per side.
+     * Remind the opponent it's their move. Once per cooldown (config etoile.nudge_cooldown_minutes) per side.
      */
     public function nudge(Request $request, Game $game): GameResource
     {

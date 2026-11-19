@@ -38,7 +38,24 @@ class User extends Authenticatable
     {
         return [
             'password' => 'hashed',
+            'ad_free' => 'boolean',
+            'preferences' => 'array',
         ];
+    }
+
+    /**
+     * Saved gameplay preferences over the defaults.
+     *
+     * @return array{undo_seconds: int, piece_set: string}
+     */
+    public function gamePreferences(): array
+    {
+        return array_merge(config('etoile.preferences.defaults'), $this->preferences ?? []);
+    }
+
+    public function showsAds(): bool
+    {
+        return config('etoile.ads_enabled') && ! $this->ad_free;
     }
 
     public function friends(): BelongsToMany

@@ -19,6 +19,9 @@ class UserResource extends JsonResource
             'username' => $this->username,
             'email' => $this->email,
             'record' => $this->record(),
+            'preferences' => $this->gamePreferences(),
+            'ad_free' => $this->ad_free,
+            'show_ads' => $this->showsAds(),
             'created_at' => $this->created_at?->toIso8601String(),
         ];
     }
